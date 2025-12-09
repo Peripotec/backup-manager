@@ -12,7 +12,7 @@ const queryClient = new QueryClient();
 function App() {
     return (
         <QueryClientProvider client={queryClient}>
-            <Router>
+            <Router basename="/manager">
                 <Routes>
                     <Route path="/" element={<MainLayout />}>
                         <Route index element={<Dashboard />} />

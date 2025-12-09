@@ -122,46 +122,63 @@ sudo ufw status verbose
 
 *Debería ver sus reglas `ALLOW IN` desde sus IPs.*
 
-## 6. Servir el Frontend (Nginx)
+## 6. Servir el Frontend (Nginx bajo /manager)
 
-Se recomienda usar Nginx para servir el frontend y hacer proxy al backend.
+Configuración recomendada para servir el frontend bajo el path `/manager` y la API bajo `/manager/api`.
 
-**1. Instalar Nginx:**
+**1. Actualizar configuración de Nginx:**
 
-```bash
-sudo apt install nginx
-```
-
-**2. Configurar sitio en `/etc/nginx/sites-available/backup-manager`:**
+Edite el archivo de sitio (ej. `/etc/nginx/sites-available/backup-manager`):
 
 ```nginx
 server {
     listen 80;
     server_name backup.testwilnet.com.ar;
 
-    location / {
-        root /opt/backup-manager/frontend/dist;
+    # Redirección de /manager a /manager/
+    location = /manager {
+        return 301 /manager/;
+    }
+
+    # Frontend (React/Vite)
+    location /manager/ {
+        alias /opt/backup-manager/frontend/dist/;
+        index index.html;
         try_files $uri $uri/ /index.html;
     }
 
-    location /api {
-        proxy_pass http://127.0.0.1:8000;
+    # Backend API (FastAPI)
+    location /manager/api/ {
+        proxy_pass http://127.0.0.1:8000/;
     }
 }
 ```
 
-**3. Activar sitio:**
+**2. Verificar configuración:**
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/backup-manager /etc/nginx/sites-enabled/
+sudo nginx -t
 ```
 
-**4. Reiniciar Nginx:**
+**3. Recargar Nginx:**
 
 ```bash
-sudo systemctl restart nginx
+sudo systemctl reload nginx
 ```
+
+## 7. Compilación del Frontend (REQUERIDO)
+
+Cada vez que se realicen cambios, **debe compilar el frontend** para que tome la configuración de rutas correcta.
+
+```bash
+cd /opt/backup-manager/frontend
+npm install
+npm run build
+```
+
+*Esto generará los assets en `dist/` con las rutas relativas a `/manager/`.*
 
 ## Verificación
 
-Acceda a `http://backup.testwilnet.com.ar` y debería ver la interfaz de login/dashboard.
+1. Acceda a `https://backup.testwilnet.com.ar/manager/` para ver la nueva interfaz.
+2. Acceda a `https://backup.testwilnet.com.ar/manager/api/docs` para ver la documentación de la API (Swagger).
