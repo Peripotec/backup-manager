@@ -9,9 +9,10 @@ export default defineConfig({
     host: true,
     port: 5173,
     proxy: {
-      '/api': {
+      '/manager/api': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/manager\/api/, '/api'),
       },
     },
   },
