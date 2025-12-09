@@ -1,0 +1,159 @@
+# Guía de Despliegue en Linux (Debian/Ubuntu)
+
+Este documento detalla los pasos para instalar el Backup Manager en un servidor de producción.
+
+## Prerrequisitos
+
+- Servidor con Debian 11/12 o Ubuntu 20.04/22.04.
+- Acceso root o sudo.
+- Conexión a internet.
+
+## 1. Preparación del Sistema
+
+Actualizar el sistema e instalar herramientas básicas:
+
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y python3 python3-pip python3-venv nodejs npm git iputils-ping traceroute
+```
+
+## 2. Instalación del Backend
+
+**1. Crear directorio de la aplicación:**
+
+```bash
+sudo mkdir -p /opt/backup-manager
+sudo chown $USER:$USER /opt/backup-manager
+cd /opt/backup-manager
+```
+
+**2. Copiar los archivos del proyecto (o clonar repositorio).**
+
+**3. Crear entorno virtual Python:**
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+**4. Instalar dependencias:**
+
+```bash
+pip install -r backend/requirements.txt
+```
+
+**5. Configurar variables de entorno:**
+
+Crear archivo `.env` en `backend/` con:
+
+```env
+DATABASE_URL=sqlite:////opt/backup-manager/backup_manager.db
+SMTP_SERVER=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=user@example.com
+SMTP_PASSWORD=secret
+```
+
+## 3. Instalación del Frontend
+
+**1. Ir al directorio frontend:**
+
+```bash
+cd frontend
+```
+
+**2. Instalar dependencias y construir:**
+
+```bash
+npm install
+npm run build
+```
+
+*Esto generará una carpeta `dist/` con los archivos estáticos.*
+
+## 4. Configuración del Servicio (Systemd)
+
+Para que el backend se ejecute automáticamente al iniciar:
+
+**1. Crear archivo `/etc/systemd/system/backup-manager.service`:**
+
+```ini
+[Unit]
+Description=Backup Manager Backend
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/opt/backup-manager/backend
+ExecStart=/opt/backup-manager/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**2. Activar servicio:**
+
+```bash
+sudo systemctl enable backup-manager
+sudo systemctl start backup-manager
+```
+
+## 5. Configuración del Firewall (UFW)
+
+> [!NOTE]
+> Según su configuración actual, ya tiene reglas que permiten el tráfico desde sus IPs de gestión (ej. `200.2.127.153`, `10.100.0.0/16`) hacia cualquier puerto.
+
+**1. No es necesario agregar nuevas reglas** si va a acceder desde esas redes confiables.
+
+**2. Solo verifique que el estado sea activo:**
+
+```bash
+sudo ufw status verbose
+```
+
+*Debería ver sus reglas `ALLOW IN` desde sus IPs.*
+
+## 6. Servir el Frontend (Nginx)
+
+Se recomienda usar Nginx para servir el frontend y hacer proxy al backend.
+
+**1. Instalar Nginx:**
+
+```bash
+sudo apt install nginx
+```
+
+**2. Configurar sitio en `/etc/nginx/sites-available/backup-manager`:**
+
+```nginx
+server {
+    listen 80;
+    server_name backup.testwilnet.com.ar;
+
+    location / {
+        root /opt/backup-manager/frontend/dist;
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api {
+        proxy_pass http://127.0.0.1:8000;
+    }
+}
+```
+
+**3. Activar sitio:**
+
+```bash
+sudo ln -s /etc/nginx/sites-available/backup-manager /etc/nginx/sites-enabled/
+```
+
+**4. Reiniciar Nginx:**
+
+```bash
+sudo systemctl restart nginx
+```
+
+## Verificación
+
+Acceda a `http://backup.testwilnet.com.ar` y debería ver la interfaz de login/dashboard.
