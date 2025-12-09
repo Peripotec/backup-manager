@@ -6,27 +6,43 @@ import logging
 
 class NotificationService:
     @staticmethod
-    def send_email(subject: str, body: str, to_emails: list[str]):
+    def send_email(subject: str, body: str, to_emails: list[str] = None):
         """
         Envía un correo electrónico utilizando la configuración SMTP definida en settings.
+        Soporta conexiones con y sin autenticación (si SMTP_PASSWORD está vacío).
         """
-        if not settings.SMTP_SERVER or not settings.SMTP_USER:
-            logging.warning("SMTP not configured. Skipping email notification.")
+        if not settings.SMTP_SERVER:
+            logging.warning("SMTP Configuration not set (SMTP_SERVER). Skipping email.")
             return
 
+        # Use default recipients from settings if not provided
+        if not to_emails:
+            if not settings.SMTP_RECIPIENTS:
+                logging.warning("No recipients defined. Skipping email.")
+                return
+            to_emails = [email.strip() for email in settings.SMTP_RECIPIENTS.split(",")]
+
         msg = MIMEMultipart()
-        msg['From'] = settings.SMTP_USER
+        msg['From'] = settings.SMTP_FROM_EMAIL
         msg['To'] = ", ".join(to_emails)
         msg['Subject'] = subject
 
         msg.attach(MIMEText(body, 'html'))
 
         try:
+            # Conexión inicial
             server = smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT)
-            server.starttls()
-            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            
+            # Lógica de seguridad y autenticación
+            # Si hay password, asumimos que se requiere autenticación y posiblemente STARTTLS (común en puerto 587)
+            if settings.SMTP_PASSWORD:
+                if settings.SMTP_PORT != 25: # STARTTLS es raro en puerto 25 para redes internas, pero estándar en 587
+                    server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            
+            # Envío
             text = msg.as_string()
-            server.sendmail(settings.SMTP_USER, to_emails, text)
+            server.sendmail(settings.SMTP_FROM_EMAIL, to_emails, text)
             server.quit()
             logging.info(f"Email sent to {to_emails}")
         except Exception as e:
@@ -57,6 +73,5 @@ class NotificationService:
                 """
             body += "</ul>"
 
-        # TODO: Get recipient list from settings or DB
-        recipients = ["admin@example.com"] 
-        NotificationService.send_email(subject, body, recipients)
+        # Envío usando los destinatarios por defecto de la configuración
+        NotificationService.send_email(subject, body)

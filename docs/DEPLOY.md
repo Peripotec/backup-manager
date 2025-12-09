@@ -27,7 +27,13 @@ sudo chown $USER:$USER /opt/backup-manager
 cd /opt/backup-manager
 ```
 
-**2. Copiar los archivos del proyecto (o clonar repositorio).**
+**2. Copiar los archivos del proyecto (o clonar repositorio):**
+
+```bash
+git clone https://github.com/Peripotec/backup-manager.git .
+```
+
+*Nota: El punto final `.` clona en el directorio actual (`/opt/backup-manager`).*
 
 **3. Crear entorno virtual Python:**
 
@@ -48,10 +54,12 @@ Crear archivo `.env` en `backend/` con:
 
 ```env
 DATABASE_URL=sqlite:////opt/backup-manager/backup_manager.db
-SMTP_SERVER=smtp.example.com
-SMTP_PORT=587
-SMTP_USER=user@example.com
-SMTP_PASSWORD=secret
+SMTP_SERVER=mail.wiltel.com.ar
+SMTP_PORT=25
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM_EMAIL=admin@wiltel.com.ar
+SMTP_RECIPIENTS=noc@wiltel.com.ar
 ```
 
 ## 3. Instalación del Frontend

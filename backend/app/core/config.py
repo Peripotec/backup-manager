@@ -8,9 +8,11 @@ class Settings(BaseSettings):
     
     # SMTP Configuration
     SMTP_SERVER: str = ""
-    SMTP_PORT: int = 587
+    SMTP_PORT: int = 25
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "admin@wiltel.com.ar"
+    SMTP_RECIPIENTS: str = "noc@wiltel.com.ar" # Comma separated list
 
     class Config:
         env_file = ".env"
